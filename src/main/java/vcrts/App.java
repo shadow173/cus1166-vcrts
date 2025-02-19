@@ -1,11 +1,24 @@
 package vcrts;
 
 import vcrts.gui.MainFrame;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import io.github.cdimascio.dotenv.Dotenv;
 
 public class App {
     public static void main(String[] args) {
-        System.out.println("Launching VCRTS GUI Application...");
-        // display the GUI frame
-        new MainFrame().setVisible(true);
+        Dotenv dotenv = Dotenv.load();
+
+        System.out.println("GOOGLE_APPLICATION_CREDENTIALS = " + dotenv.get("GOOGLE_APPLICATION_CREDENTIALS"));
+
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        SwingUtilities.invokeLater(() -> {
+            new MainFrame().setVisible(true);
+        });
     }
 }
