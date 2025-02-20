@@ -16,8 +16,10 @@ public class DatabaseManager {
         jobs.add(new Job("002", "Completed", "5 min", "02/19/2025", 100));
         jobs.add(new Job("002", "Queued", "1 hr", "02/21/2025", 100));
 
-        vehicles.add(new Vehicle("A101", "In Use", 5, 500));
-        vehicles.add(new Vehicle("B202", "Idle", 2, 200));
+
+        vehicles.add(new Vehicle("A101", "Toyota", "Camry", "2022", "VIN123456789", 5, "10:00 AM", "1:15 PM", "In Use"));
+        vehicles.add(new Vehicle("B202", "Honda", "Civic", "2021", "VIN987654321", 3, "9:30 AM", "12:00 PM", "Idle"));
+        vehicles.add(new Vehicle("C303", "Tesla", "Model S", "2023", "VIN555222333", 10, "11:00 AM", "", "Offline"));
     }
 
     public Object[][] getFilteredJobs(String status) {
@@ -29,7 +31,7 @@ public class DatabaseManager {
 
     public Object[][] getFilteredVehicles(String status) {
         return vehicles.stream()
-            .filter(v -> status.equals("All") || v.getStatus().equals(status))
+            
             .map(Vehicle::toArray)
             .toArray(Object[][]::new);
     }
