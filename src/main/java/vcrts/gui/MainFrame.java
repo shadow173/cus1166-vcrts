@@ -38,4 +38,12 @@ public class MainFrame extends JFrame {
     public void showPage(String pageName) {
         cardLayout.show(mainPanel, pageName);
     }
+
+    public static void main(String[] args) {
+        // Use the event dispatch thread to build the UI for thread safety
+        SwingUtilities.invokeLater(() -> {
+            MainFrame frame = new MainFrame();
+            frame.setVisible(true);
+        });
+    }
 }

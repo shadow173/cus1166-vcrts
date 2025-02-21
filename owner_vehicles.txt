@@ -1,0 +1,12 @@
+Make: 31312312
+Year: 31312312
+VIN: 3123123123
+
+
+Timestamp: 2025-02-21 15:23:15
+Owner ID: 23123123
+Model: camry le
+Make: toyota
+Year: 2023
+VIN: 3313123441412
+Residency Time: 20:00:00
