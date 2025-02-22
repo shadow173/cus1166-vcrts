@@ -4,17 +4,17 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
-import vcrts.db.DatabaseManager;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 
 public class OwnerDashboard extends JPanel {
-    private DatabaseManager dbManager;
     private JTable vehicleTable;
     private DefaultTableModel tableModel;
-    private JComboBox<String> statusFilter;
     private JButton refreshButton;
 
-    public OwnerDashboard(DatabaseManager dbManager) {
-        this.dbManager = dbManager;
+    public OwnerDashboard() {
         setLayout(new BorderLayout());
         setBackground(new Color(43, 43, 43));
 
@@ -23,9 +23,8 @@ public class OwnerDashboard extends JPanel {
         title.setForeground(Color.WHITE);
         add(title, BorderLayout.NORTH);
 
-        // Table for vehicle tracking
-        String[] columnNames = { "Vehicle ID", "Owner ID", "Model", "Make", "Year", "VIN", "Jobs Completed", "Arrival Time", "Departure Time", "Residency Time", "Status" };
-
+        // Table setup for vehicles
+        String[] columnNames = { "Owner ID", "Model", "Make", "Year", "VIN", "Residency Time" };
         tableModel = new DefaultTableModel(new Object[0][columnNames.length], columnNames) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -47,17 +46,9 @@ public class OwnerDashboard extends JPanel {
         JScrollPane scrollPane = new JScrollPane(vehicleTable);
         add(scrollPane, BorderLayout.CENTER);
 
-        // Filter & Refresh Panel
+        // Refresh Panel
         JPanel controlPanel = new JPanel();
         controlPanel.setBackground(new Color(43, 43, 43));
-
-        String[] statuses = { "All", "Idle", "In Use", "Offline" };
-        statusFilter = new JComboBox<>(statuses);
-        statusFilter.setBackground(Color.WHITE);
-        statusFilter.setForeground(Color.BLACK);
-        statusFilter.setFont(new Font("Arial", Font.PLAIN, 14));
-        statusFilter.addActionListener(e -> updateTable());
-        controlPanel.add(statusFilter);
 
         refreshButton = new JButton("Refresh");
         refreshButton.setBackground(Color.WHITE);
@@ -67,26 +58,61 @@ public class OwnerDashboard extends JPanel {
 
         add(controlPanel, BorderLayout.SOUTH);
 
+        // Auto-refresh every 10 seconds
+        Timer timer = new Timer(10000, e -> updateTable());
+        timer.start();
+
         updateTable(); // Load initial data
     }
 
-    private void updateTable() {
-        String selectedStatus = (String) statusFilter.getSelectedItem();
-        Object[][] vehicleData = dbManager.getFilteredVehicles(selectedStatus);
-        tableModel.setRowCount(0);
+    public void updateTable() {
+        tableModel.setRowCount(0); // Clear table before adding new data
 
-        for (Object[] row : vehicleData) {
-            tableModel.addRow(row);
+        try {
+            List<String> lines = Files.readAllLines(Paths.get("owner_vehicles.txt"));
+            int entryLines = 7; // Each vehicle entry should have exactly 7 lines
+
+            for (int i = 0; i + entryLines <= lines.size(); i += entryLines) {
+                // Ensure the expected format is correct before parsing
+                if (lines.get(i + 1).contains(": ") &&
+                    lines.get(i + 2).contains(": ") &&
+                    lines.get(i + 3).contains(": ") &&
+                    lines.get(i + 4).contains(": ") &&
+                    lines.get(i + 5).contains(": ") &&
+                    lines.get(i + 6).contains(": ")) {
+
+                    String ownerId = extractValue(lines.get(i + 1));      // Owner ID
+                    String model = extractValue(lines.get(i + 2));       // Model
+                    String make = extractValue(lines.get(i + 3));        // Make
+                    String year = extractValue(lines.get(i + 4));        // Year
+                    String vin = extractValue(lines.get(i + 5));         // VIN
+                    String residencyTime = extractValue(lines.get(i + 6)); // Residency Time
+
+                    tableModel.addRow(new Object[]{ownerId, model, make, year, vin, residencyTime});
+                } else {
+                    System.out.println("Skipping invalid entry at line " + (i + 1));
+                }
+            }
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error loading vehicle data: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /**
+     * Extracts the value from a line formatted as "Key: Value".
+     * Ensures no blank values cause errors.
+     */
+    private String extractValue(String line) {
+        String[] parts = line.split(": ", 2);
+        return (parts.length > 1) ? parts[1].trim() : "N/A";
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            DatabaseManager dbManager = new DatabaseManager();
             JFrame frame = new JFrame("Owner Dashboard Test");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(1100, 600);
-            frame.add(new OwnerDashboard(dbManager));
+            frame.add(new OwnerDashboard());
             frame.setVisible(true);
         });
     }
