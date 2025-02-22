@@ -1,4 +1,9 @@
 package vcrts.gui.pages;
 
-public class ClientForm {
+import javax.swing.*;
+import java.awt.*;
+import vcrts.db.DatabaseManager;
+
+public class ClientForm extends JFrame {
+    
 }
