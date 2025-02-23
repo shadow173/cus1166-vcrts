@@ -86,7 +86,7 @@ public class OwnerForm extends JPanel {
 
             // Format the data to be saved
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            String data = String.format("Timestamp: %s\nOwner ID: %s\nModel: %s\nMake: %s\nYear: %s\nVIN: %s\nResidency Time: %s\n",
+            String data = String.format("Timestamp: %s\nOwner ID: %s\nModel: %s\nMake: %s\nYear: %s\nVIN: %s\nResidency Time: %s",
                     timestamp, ownerId, model, make, year, vin, residencyTime);
 
             // Save the data to a file
@@ -94,7 +94,7 @@ public class OwnerForm extends JPanel {
                 if (Files.exists(Paths.get("owner_vehicles.txt")) && Files.size(Paths.get("owner_vehicles.txt")) > 0) {
                     writer.write("\n"); // Add a newline only if the file is not empty
                 }
-                writer.write(data);
+                writer.write(data); // Write the new entry
                 JOptionPane.showMessageDialog(this, "Vehicle registered successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this, "Error saving vehicle: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -149,7 +149,7 @@ public class OwnerForm extends JPanel {
 
                 // Combine 7 lines for display
                 String vehicle = String.join("\n", vehicles.subList(i, i + 7));
-                JPanel vehiclePanel = createVehiclePanel(vehicle, i);
+                JPanel vehiclePanel = createVehiclePanel(vehicle);
                 vehiclesPanel.add(vehiclePanel);
                 vehiclesPanel.add(Box.createVerticalStrut(10));
             }
@@ -175,7 +175,7 @@ public class OwnerForm extends JPanel {
         mainPanel.repaint();
     }
 
-    private JPanel createVehiclePanel(String vehicle, int index) {
+    private JPanel createVehiclePanel(String vehicle) {
         JPanel vehiclePanel = new JPanel();
         vehiclePanel.setLayout(new BorderLayout());
         vehiclePanel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
@@ -184,26 +184,9 @@ public class OwnerForm extends JPanel {
         vehicleTextArea.setEditable(false);
         vehicleTextArea.setFont(new Font("Arial", Font.PLAIN, 14));
 
-        JButton deleteButton = new JButton("Delete");
-        deleteButton.addActionListener(e -> deleteVehicle(index));
-
         vehiclePanel.add(vehicleTextArea, BorderLayout.CENTER);
-        vehiclePanel.add(deleteButton, BorderLayout.EAST);
 
         return vehiclePanel;
-    }
-
-    private void deleteVehicle(int index) {
-        try {
-            List<String> vehicles = Files.readAllLines(Paths.get("owner_vehicles.txt"));
-            if (index >= 0 && index < vehicles.size()) {
-                vehicles.subList(index, index + 7).clear(); // Remove 7 lines (1 vehicle)
-                Files.write(Paths.get("owner_vehicles.txt"), vehicles);
-                showRegisteredVehiclesPanel(); // Refresh the view
-            }
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "Error deleting vehicle: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
     }
 
     // Main method to test the OwnerForm independently

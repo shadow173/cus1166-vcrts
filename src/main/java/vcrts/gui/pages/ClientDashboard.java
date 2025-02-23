@@ -1,13 +1,14 @@
 package vcrts.gui.pages;
 
-import vcrts.db.DatabaseManager;
-
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+import vcrts.db.DatabaseManager;
 
 public class ClientDashboard extends JPanel {
     private DatabaseManager dbManager;
@@ -26,9 +27,9 @@ public class ClientDashboard extends JPanel {
         title.setForeground(Color.WHITE);
         add(title, BorderLayout.NORTH);
 
-        // Tables for job tracking
-        String[] columnNames = { "Client ID", "Job ID", "Status", "Estimated Completion Time", "Deadline" };
-        tableModel = new DefaultTableModel(new Object[0][5], columnNames) {
+        // Table setup
+        String[] columnNames = { "Client ID", "Job ID", "Status", "Approximate Job Duration", "Deadline" };
+        tableModel = new DefaultTableModel(new Object[0][columnNames.length], columnNames) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false; // Make table read-only
@@ -76,25 +77,36 @@ public class ClientDashboard extends JPanel {
         updateTable();
     }
 
-    private void updateTable() {
+    public void updateTable() {
         String selectedStatus = (String) statusFilter.getSelectedItem();
-        Object[][] jobData = dbManager.getFilteredJobs(selectedStatus);
         tableModel.setRowCount(0);
 
-        // Format deadline date
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+        // Read jobs from client_jobs.txt
+        try {
+            List<String> lines = Files.readAllLines(Paths.get("client_jobs.txt"));
+            int jobEntryLines = 6; // Each job entry has 6 lines
+            for (int i = 0; i + jobEntryLines <= lines.size(); i += jobEntryLines) {
+                String clientId = lines.get(i + 1).split(": ")[1];
+                String jobId = lines.get(i + 2).split(": ")[1]; // Job Title
+                String duration = lines.get(i + 4).split(": ")[1]; // Job Duration
+                String deadline = lines.get(i + 5).split(": ")[1]; // Deadline
 
-        for (Object[] row : jobData) {
-            if (row.length < 3) continue; // Skip if row data is incomplete
-
-            Object[] updatedRow = new Object[5];  // Ensure exactly 5 columns
-            updatedRow[0] = "Client001";  // Placeholder for Client ID (Replace with real data)
-            updatedRow[1] = row[0];  // Job ID
-            updatedRow[2] = row[1];  // Status
-            updatedRow[3] = row[2];  // Estimated Completion Time
-            updatedRow[4] = dateFormat.format(new Date());  // Deadline (Replace with real deadline)
-
-            tableModel.addRow(updatedRow);
+                // Default status to "Queued"
+                tableModel.addRow(new Object[]{clientId, jobId, "Queued", duration, deadline});
+            }
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Error loading job data: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            DatabaseManager dbManager = new DatabaseManager();
+            JFrame frame = new JFrame("Client Dashboard Test");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setSize(1000, 600);
+            frame.add(new ClientDashboard(dbManager));
+            frame.setVisible(true);
+        });
     }
 }

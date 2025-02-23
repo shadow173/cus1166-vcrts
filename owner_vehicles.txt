@@ -1,12 +1,21 @@
-Make: 31312312
-Year: 31312312
-VIN: 3123123123
-
-
-Timestamp: 2025-02-21 15:23:15
-Owner ID: 23123123
-Model: camry le
-Make: toyota
+Timestamp: 2025-02-22 19:54:53
+Owner ID: owner1
+Model: model1
+Make: make1
+Year: 2020
+VIN: vin1
+Residency Time: 11:11:11
+Timestamp: 2025-02-22 19:55:23
+Owner ID: owner2
+Model: model2
+Make: make2
+Year: 2022
+VIN: vin2
+Residency Time: 22:22:22
+Timestamp: 2025-02-22 19:55:45
+Owner ID: owner3
+Model: model3
+Make: make3
 Year: 2023
-VIN: 3313123441412
-Residency Time: 20:00:00
+VIN: vin3
+Residency Time: 33:33:33
