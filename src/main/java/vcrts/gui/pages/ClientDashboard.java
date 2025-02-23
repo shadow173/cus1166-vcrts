@@ -28,7 +28,7 @@ public class ClientDashboard extends JPanel {
         add(title, BorderLayout.NORTH);
 
         // Table setup
-        String[] columnNames = { "Client ID", "Job ID", "Status", "Estimated Completion Time", "Deadline" };
+        String[] columnNames = { "Client ID", "Job ID", "Status", "Approximate Job Duration", "Deadline" };
         tableModel = new DefaultTableModel(new Object[0][columnNames.length], columnNames) {
             @Override
             public boolean isCellEditable(int row, int column) {

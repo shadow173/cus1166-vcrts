@@ -86,7 +86,7 @@ public class OwnerForm extends JPanel {
 
             // Format the data to be saved
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            String data = String.format("Timestamp: %s\nOwner ID: %s\nModel: %s\nMake: %s\nYear: %s\nVIN: %s\nResidency Time: %s\n",
+            String data = String.format("Timestamp: %s\nOwner ID: %s\nModel: %s\nMake: %s\nYear: %s\nVIN: %s\nResidency Time: %s",
                     timestamp, ownerId, model, make, year, vin, residencyTime);
 
             // Save the data to a file
@@ -94,7 +94,7 @@ public class OwnerForm extends JPanel {
                 if (Files.exists(Paths.get("owner_vehicles.txt")) && Files.size(Paths.get("owner_vehicles.txt")) > 0) {
                     writer.write("\n"); // Add a newline only if the file is not empty
                 }
-                writer.write(data);
+                writer.write(data); // Write the new entry
                 JOptionPane.showMessageDialog(this, "Vehicle registered successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this, "Error saving vehicle: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -196,10 +196,17 @@ public class OwnerForm extends JPanel {
     private void deleteVehicle(int index) {
         try {
             List<String> vehicles = Files.readAllLines(Paths.get("owner_vehicles.txt"));
-            if (index >= 0 && index < vehicles.size()) {
-                vehicles.subList(index, index + 7).clear(); // Remove 7 lines (1 vehicle)
+            if (index >= 0 && index + 7 <= vehicles.size()) {
+                // Remove 7 lines (1 vehicle)
+                vehicles.subList(index, index + 7).clear();
+
+                // Write the updated list back to the file
                 Files.write(Paths.get("owner_vehicles.txt"), vehicles);
-                showRegisteredVehiclesPanel(); // Refresh the view
+
+                // Refresh the view
+                showRegisteredVehiclesPanel();
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid index for deletion.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Error deleting vehicle: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
