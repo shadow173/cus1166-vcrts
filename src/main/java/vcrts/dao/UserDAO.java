@@ -54,6 +54,8 @@ public class UserDAO {
         return false;
     }
 
+//    *****User fetching and methods will be implemented on the GUI later.******
+
     /**
      * Retrieves a user from the database by user ID.
      *
