@@ -7,7 +7,7 @@ import java.awt.event.ActionListener;
 import vcrts.gui.MainFrame;
 
 public class StartupPage extends JPanel {
-    private MainFrame parent;
+    private final MainFrame parent;
 
     public StartupPage(MainFrame parent) {
         this.parent = parent;

@@ -3,50 +3,59 @@ package vcrts.gui.pages;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.List;
+import vcrts.dao.JobDAO;
+import vcrts.dao.UserDAO;
+import vcrts.dao.AllocationDAO;
+import vcrts.models.Job;
+import vcrts.models.User;
+import vcrts.models.Allocation;
 
-public class CloudControllerDashboard extends JFrame {
-	private JTable jobTable, userTable, allocationTable;
+public class CloudControllerDashboard extends JPanel {
+    private JTable jobTable, userTable, allocationTable;
     private DefaultTableModel jobTableModel, userTableModel, allocationTableModel;
-    private JButton addJobButton, editJobButton, deleteJobButton, addUserButton, editUserButton, deleteUserButton, allocateButton,removeAllocationButton ;
+    private JButton addJobButton, editJobButton, deleteJobButton;
+    private JButton addUserButton, editUserButton, deleteUserButton;
+    private JButton allocateButton, removeAllocationButton;
     private JComboBox<String> userDropdown, jobDropdown;
 
+    // DAO instances
+    private JobDAO jobDAO = new JobDAO();
+    private UserDAO userDAO = new UserDAO();
+    private AllocationDAO allocationDAO = new AllocationDAO();
+
     public CloudControllerDashboard() {
-        setTitle("Cloud Controller");
-        setSize(800, 600);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // Adding Menu Bar with Right Alignment
+        // Top panel with title and menu bar
+        JPanel topPanel = new JPanel(new BorderLayout());
+        JLabel titleLabel = new JLabel("Cloud Controller", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
+        topPanel.add(titleLabel, BorderLayout.NORTH);
+
         JMenuBar menuBar = new JMenuBar();
-        menuBar.setLayout(new FlowLayout(FlowLayout.RIGHT)); 
+        menuBar.setLayout(new FlowLayout(FlowLayout.RIGHT));
         JMenu menu = new JMenu("Menu");
         JMenuItem editProfile = new JMenuItem("Edit Profile");
         JMenuItem logout = new JMenuItem("Logout");
-        JMenuItem exit = new JMenuItem("Exit to Desktop"); 
-
+        JMenuItem exit = new JMenuItem("Exit to Desktop");
         menu.add(editProfile);
         menu.add(logout);
         menu.add(exit);
         menuBar.add(menu);
-        setJMenuBar(menuBar);
+        topPanel.add(menuBar, BorderLayout.SOUTH);
+        add(topPanel, BorderLayout.NORTH);
 
-        // Adding Title Label
-        JLabel titleLabel = new JLabel("Cloud Controller", SwingConstants.CENTER);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        add(titleLabel, BorderLayout.NORTH);
-
-        // Creating Tabs for Jobs and Users
+        // Tabbed pane for Jobs, Users, and Allocations
         JTabbedPane tabbedPane = new JTabbedPane();
 
-        // Job Table Panel
+        // Jobs Tab
         JPanel jobPanel = new JPanel(new BorderLayout());
-        String[] jobColumns = {"Job ID", "Job Name", "Job Owner","Duration","Deadline", "Status"};
+        String[] jobColumns = {"Job ID", "Job Name", "Job Owner", "Duration", "Deadline", "Status"};
         jobTableModel = new DefaultTableModel(jobColumns, 0);
         jobTable = new JTable(jobTableModel);
         jobPanel.add(new JScrollPane(jobTable), BorderLayout.CENTER);
-        
 
-        // Job Action Panel
         JPanel jobActionPanel = new JPanel();
         addJobButton = new JButton("Add Job");
         editJobButton = new JButton("Edit Job");
@@ -57,15 +66,13 @@ public class CloudControllerDashboard extends JFrame {
         jobPanel.add(jobActionPanel, BorderLayout.SOUTH);
         tabbedPane.addTab("Jobs", jobPanel);
 
-
-        // User Table Panel
+        // Users Tab
         JPanel userPanel = new JPanel(new BorderLayout());
-        String[] userColumns = {"User ID", "Username", "Email", "Vehicle Model", "Vehicle Make", "Vehicle Year", "Vehicle VIN", "Arrival Time", "Departure Time"};
+        String[] userColumns = {"User ID", "Username", "Email", "Role"};
         userTableModel = new DefaultTableModel(userColumns, 0);
         userTable = new JTable(userTableModel);
         userPanel.add(new JScrollPane(userTable), BorderLayout.CENTER);
 
-        // User Action Panel
         JPanel userActionPanel = new JPanel();
         addUserButton = new JButton("Add User");
         editUserButton = new JButton("Edit User");
@@ -76,9 +83,9 @@ public class CloudControllerDashboard extends JFrame {
         userPanel.add(userActionPanel, BorderLayout.SOUTH);
         tabbedPane.addTab("Users", userPanel);
 
-        // Allocation Panel
+        // Allocations Tab
         JPanel allocationPanel = new JPanel(new BorderLayout());
-        String[] allocationColumns = {"User", "Job"};
+        String[] allocationColumns = {"Allocation ID", "User", "Job"};
         allocationTableModel = new DefaultTableModel(allocationColumns, 0);
         allocationTable = new JTable(allocationTableModel);
         allocationPanel.add(new JScrollPane(allocationTable), BorderLayout.CENTER);
@@ -88,144 +95,199 @@ public class CloudControllerDashboard extends JFrame {
         jobDropdown = new JComboBox<>();
         allocateButton = new JButton("Allocate User to Job");
         removeAllocationButton = new JButton("Remove Allocation");
-
         allocationControls.add(new JLabel("Select User:"));
         allocationControls.add(userDropdown);
         allocationControls.add(new JLabel("Select Job:"));
         allocationControls.add(jobDropdown);
         allocationControls.add(allocateButton);
         allocationControls.add(removeAllocationButton);
-
         allocationPanel.add(allocationControls, BorderLayout.SOUTH);
         tabbedPane.addTab("Allocations", allocationPanel);
 
         add(tabbedPane, BorderLayout.CENTER);
-        loadSampleData();
 
+        // Load data using DAO methods
+        loadJobData();
+        loadUserData();
+        loadAllocationData();
+        loadAllocationDropdowns();
 
-        // Button Actions
+        // Button actions
         addJobButton.addActionListener(e -> addNewJob());
-        editJobButton.addActionListener(e -> editSelectedRow(jobTable, jobTableModel));
-        deleteJobButton.addActionListener(e -> deleteSelectedRow(jobTable, jobTableModel));
+        editJobButton.addActionListener(e -> editSelectedJob());
+        deleteJobButton.addActionListener(e -> deleteSelectedJob());
         addUserButton.addActionListener(e -> addNewUser());
-        editUserButton.addActionListener(e -> editSelectedRow(userTable, userTableModel));
-        deleteUserButton.addActionListener(e -> deleteSelectedRow(userTable, userTableModel));
+        editUserButton.addActionListener(e -> editSelectedUser());
+        deleteUserButton.addActionListener(e -> deleteSelectedUser());
         allocateButton.addActionListener(e -> allocateUserToJob());
-        removeAllocationButton.addActionListener(e -> removeUserFromJob());
-        
-        
-        // Menu Actions
+        removeAllocationButton.addActionListener(e -> removeSelectedAllocation());
+
+        // Menu actions
         editProfile.addActionListener(e -> JOptionPane.showMessageDialog(this, "Edit Profile clicked"));
         logout.addActionListener(e -> JOptionPane.showMessageDialog(this, "Logging out..."));
         exit.addActionListener(e -> System.exit(0));
     }
-    
-    private void allocateUserToJob() {
-        String selectedUser = (String) userDropdown.getSelectedItem();
-        String selectedJob = (String) jobDropdown.getSelectedItem();
-        if (selectedUser != null && selectedJob != null) {
-            allocationTableModel.addRow(new Object[]{selectedUser, selectedJob});
-        } else {
-            JOptionPane.showMessageDialog(this, "Please select both a user and a job.");
-        }
-    }
-    
-    private void removeUserFromJob() {
-        int selectedRow = allocationTable.getSelectedRow();
-        if (selectedRow != -1) {
-            allocationTableModel.removeRow(selectedRow);
-        } else {
-            JOptionPane.showMessageDialog(this, "Please select a row to remove.");
+
+    private void loadJobData() {
+        jobTableModel.setRowCount(0);
+        List<Job> jobs = jobDAO.getAllJobs();
+        for (Job job : jobs) {
+            jobTableModel.addRow(new Object[]{job.getJobId(), job.getJobName(), job.getJobOwnerId(), job.getDuration(), job.getDeadline(), job.getStatus()});
         }
     }
 
-    private void loadSampleData() {
-        jobTableModel.addRow(new Object[]{"101", "Data Backup", "Alice", "2 hours", "2025-03-01", "Running"});
-        jobTableModel.addRow(new Object[]{"102", "Security Scan", "Bob", "3 hours", "2025-03-05", "Pending"});
-        userTableModel.addRow(new Object[]{
-        	    "001", 
-        	    "jane_doe", 
-        	    "jane.doe@example.com", 
-        	    "Model 3", 
-        	    "Tesla", 
-        	    "2022", 
-        	    "5YJ3E1EA8NF123456", 
-        	    "10:30 AM", 
-        	    "2:45 PM"
-        	});
+    private void loadUserData() {
+        userTableModel.setRowCount(0);
+        List<User> users = userDAO.getAllVehicleOwners();
+        for (User user : users) {
+            userTableModel.addRow(new Object[]{user.getUserId(), user.getFullName(), user.getEmail(), user.getRole()});
+        }
+    }
 
-        	userTableModel.addRow(new Object[]{
-        	    "002", 
-        	    "michael_smith", 
-        	    "michael.smith@example.com", 
-        	    "Mustang", 
-        	    "Ford", 
-        	    "2019", 
-        	    "1FA6P8TH4K5154321", 
-        	    "9:15 AM", 
-        	    "1:30 PM"
-        	});
-            allocationTableModel.addRow(new Object[]{"jane_doe", "Data Backup"});
-            allocationTableModel.addRow(new Object[]{"michael_smith", "Security Scan"});
-        
+    private void loadAllocationData() {
+        allocationTableModel.setRowCount(0);
+        List<Allocation> allocations = allocationDAO.getAllAllocations();
+        for (Allocation allocation : allocations) {
+            allocationTableModel.addRow(new Object[]{allocation.getAllocationId(), allocation.getUserId(), allocation.getJobId()});
+        }
+    }
+
+    private void loadAllocationDropdowns() {
+        userDropdown.removeAllItems();
+        jobDropdown.removeAllItems();
+
+        List<User> users = userDAO.getAllVehicleOwners();
+        for (User user : users) {
+            userDropdown.addItem(user.getUserId() + " - " + user.getFullName());
+        }
+
+        List<Job> jobs = jobDAO.getAllJobs();
+        for (Job job : jobs) {
+            jobDropdown.addItem(job.getJobId() + " - " + job.getJobName());
+        }
     }
 
     private void addNewJob() {
         String jobId = JOptionPane.showInputDialog(this, "Enter Job ID:");
         String jobName = JOptionPane.showInputDialog(this, "Enter Job Name:");
-        String jobOwner = JOptionPane.showInputDialog(this, "Enter Job Owner:");
+      // add more error handling for jobowner int validation
+        int jobOwner = Integer.parseInt(JOptionPane.showInputDialog(this, "Enter Job Owner (User ID):"));
         String duration = JOptionPane.showInputDialog(this, "Enter Estimated Duration:");
         String deadline = JOptionPane.showInputDialog(this, "Enter Deadline:");
-        String jobStatus = JOptionPane.showInputDialog(this, "Enter Job Status:");
+        String status = JOptionPane.showInputDialog(this, "Enter Job Status:");
 
+        if (jobId != null && jobName != null && status != null) {
+            Job job = new Job(jobId, jobName, jobOwner, duration, deadline, status);
+            if (jobDAO.addJob(job)) {
+                loadJobData();
+                loadAllocationDropdowns();
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to add job.");
+            }
+        }
+    }
 
-        if (jobId != null && jobName != null && jobStatus != null) {
-            jobTableModel.addRow(new Object[]{jobId, jobName, jobStatus});
+    private void editSelectedJob() {
+        int selectedRow = jobTable.getSelectedRow();
+        if (selectedRow != -1) {
+            String jobId = (String) jobTableModel.getValueAt(selectedRow, 0);
+            String newJobName = JOptionPane.showInputDialog(this, "Enter new Job Name:", jobTableModel.getValueAt(selectedRow, 1));
+            // For brevity, we update only the table display. You can add jobDAO.updateJob(job) here.
+            if (newJobName != null) {
+                jobTableModel.setValueAt(newJobName, selectedRow, 1);
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Please select a job to edit.");
+        }
+    }
+
+    private void deleteSelectedJob() {
+        int selectedRow = jobTable.getSelectedRow();
+        if (selectedRow != -1) {
+            String jobId = (String) jobTableModel.getValueAt(selectedRow, 0);
+            if (jobDAO.deleteJob(jobId)) {
+                loadJobData();
+                loadAllocationDropdowns();
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to delete job.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Please select a job to delete.");
         }
     }
 
     private void addNewUser() {
-        String userId = JOptionPane.showInputDialog(this, "Enter User ID:");
-        String username = JOptionPane.showInputDialog(this, "Enter Username:");
+        String fullName = JOptionPane.showInputDialog(this, "Enter Username:");
         String email = JOptionPane.showInputDialog(this, "Enter Email:");
-        String vehicleModel = JOptionPane.showInputDialog(this, "Enter Vehicle Model:");
-        String vehicleMake = JOptionPane.showInputDialog(this, "Enter Vehicle Make:");
-        String vehicleYear = JOptionPane.showInputDialog(this, "Enter Vehicle Year:");
-        String vehicleVIN = JOptionPane.showInputDialog(this, "Enter Vehicle VIN:");
-        String arrivalTime = JOptionPane.showInputDialog(this, "Enter Arrival Time:");
-        String departureTime = JOptionPane.showInputDialog(this, "Enter Departure Time:");
-        
-
-        if (userId != null && username != null) {
-            userTableModel.addRow(new Object[]{userId, username, email, vehicleModel, vehicleMake, vehicleYear, vehicleVIN, arrivalTime, departureTime});
+        String password = JOptionPane.showInputDialog(this, "Enter Password:");
+        if (fullName != null && email != null && password != null) {
+            User user = new User( fullName, email, "vehicle_owner", password);
+            if (userDAO.addUser(user)) {
+                loadUserData();
+                loadAllocationDropdowns();
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to add user.");
+            }
         }
     }
 
-    private void editSelectedRow(JTable table, DefaultTableModel model) {
-        int selectedRow = table.getSelectedRow();
+    private void editSelectedUser() {
+        int selectedRow = userTable.getSelectedRow();
         if (selectedRow != -1) {
-            for (int i = 0; i < table.getColumnCount(); i++) {
-                String newValue = JOptionPane.showInputDialog(this, "Edit " + table.getColumnName(i),
-                        model.getValueAt(selectedRow, i));
-                if (newValue != null) {
-                    model.setValueAt(newValue, selectedRow, i);
-                }
+            String userId = (String) userTableModel.getValueAt(selectedRow, 0);
+            String newName = JOptionPane.showInputDialog(this, "Enter new Username:", userTableModel.getValueAt(selectedRow, 1));
+            // For brevity, we update only the table display. Add userDAO.updateUser(user) as needed.
+            if (newName != null) {
+                userTableModel.setValueAt(newName, selectedRow, 1);
             }
         } else {
-            JOptionPane.showMessageDialog(this, "Please select a row to edit.");
+            JOptionPane.showMessageDialog(this, "Please select a user to edit.");
         }
     }
 
-    private void deleteSelectedRow(JTable table, DefaultTableModel model) {
-        int selectedRow = table.getSelectedRow();
+    private void deleteSelectedUser() {
+        int selectedRow = userTable.getSelectedRow();
         if (selectedRow != -1) {
-            model.removeRow(selectedRow);
+            String userId = (String) userTableModel.getValueAt(selectedRow, 0);
+            if (userDAO.deleteUser(userId)) {
+                loadUserData();
+                loadAllocationDropdowns();
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to delete user.");
+            }
         } else {
-            JOptionPane.showMessageDialog(this, "Please select a row to delete.");
+            JOptionPane.showMessageDialog(this, "Please select a user to delete.");
         }
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new CloudControllerDashboard().setVisible(true));
+    private void allocateUserToJob() {
+        String userSelection = (String) userDropdown.getSelectedItem();
+        String jobSelection = (String) jobDropdown.getSelectedItem();
+        if (userSelection != null && jobSelection != null) {
+            String userId = userSelection.split(" - ")[0];
+            String jobId = jobSelection.split(" - ")[0];
+            Allocation allocation = new Allocation(userId, jobId);
+            if (allocationDAO.addAllocation(allocation)) {
+                loadAllocationData();
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to allocate user to job.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Please select both a user and a job.");
+        }
+    }
+
+    private void removeSelectedAllocation() {
+        int selectedRow = allocationTable.getSelectedRow();
+        if (selectedRow != -1) {
+            int allocationId = (Integer) allocationTableModel.getValueAt(selectedRow, 0);
+            if (allocationDAO.deleteAllocation(allocationId)) {
+                loadAllocationData();
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to remove allocation.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Please select an allocation to remove.");
+        }
     }
 }

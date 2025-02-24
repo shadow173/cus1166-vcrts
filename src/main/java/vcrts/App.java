@@ -9,8 +9,6 @@ public class App {
     public static void main(String[] args) {
         Dotenv dotenv = Dotenv.load();
 
-        System.out.println("GOOGLE_APPLICATION_CREDENTIALS = " + dotenv.get("GOOGLE_APPLICATION_CREDENTIALS"));
-
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception e) {

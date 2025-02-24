@@ -2,19 +2,25 @@ package vcrts.gui.pages;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.logging.Logger;
 import vcrts.gui.MainFrame;
+import vcrts.dao.UserDAO;
+import vcrts.models.User;
 
 public class LoginPage extends JPanel {
+    private static final Logger logger = Logger.getLogger(LoginPage.class.getName());
     private MainFrame parent;
-    private JTextField usernameField;
+    private JTextField emailField;
     private JPasswordField passwordField;
     private JButton loginButton;
+    private UserDAO userDAO = new UserDAO();
 
     public LoginPage(MainFrame parent) {
         this.parent = parent;
         setOpaque(true);
         setBackground(Color.WHITE);
         setLayout(new BorderLayout());
+
         add(createHeader(), BorderLayout.NORTH);
         add(createFormPanel(), BorderLayout.CENTER);
     }
@@ -38,14 +44,14 @@ public class LoginPage extends JPanel {
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        JLabel usernameLabel = new JLabel("Username:");
-        usernameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        formPanel.add(usernameLabel, gbc);
+        JLabel emailLabel = new JLabel("Email:");
+        emailLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        formPanel.add(emailLabel, gbc);
 
         gbc.gridx = 1;
-        usernameField = new JTextField(15);
-        usernameField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        formPanel.add(usernameField, gbc);
+        emailField = new JTextField(15);
+        emailField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        formPanel.add(emailField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 1;
@@ -65,15 +71,21 @@ public class LoginPage extends JPanel {
         loginButton.setPreferredSize(new Dimension(120, 35));
         formPanel.add(loginButton, gbc);
 
-        // Here, add an action listener to handle login (dummy authentication for now)
         loginButton.addActionListener(e -> {
-            // Dummy authentication - replace with real logic later
-            String username = usernameField.getText();
-            String password = new String(passwordField.getPassword());
-            if ("admin".equals(username) && "adminpass".equals(password)) {
-                parent.showPage("dashboard");
+            String email = emailField.getText().trim();
+            String password = new String(passwordField.getPassword()).trim();
+
+            if (email.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Both email and password are required.", "Login Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            User user = userDAO.authenticate(email, password);
+            if (user != null) {
+                logger.info("User authenticated: " + user);
+                parent.showDashboard(user);
             } else {
-                JOptionPane.showMessageDialog(this, "Invalid login. Please try again.", "Login Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Invalid credentials. Please try again.", "Login Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
