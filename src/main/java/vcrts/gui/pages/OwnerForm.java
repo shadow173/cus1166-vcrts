@@ -69,7 +69,7 @@ public class OwnerForm extends JPanel {
                 return;
             }
 
-            
+
             Vehicle vehicle = new Vehicle(ownerId, model, make, year, vin, residencyTime);
 
             if(vehicleDAO.addVehicle(vehicle)){
