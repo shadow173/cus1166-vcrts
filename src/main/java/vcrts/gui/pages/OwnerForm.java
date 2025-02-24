@@ -69,8 +69,7 @@ public class OwnerForm extends JPanel {
                 return;
             }
 
-            // Optionally record a timestamp if needed
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            
             Vehicle vehicle = new Vehicle(ownerId, model, make, year, vin, residencyTime);
 
             if(vehicleDAO.addVehicle(vehicle)){
