@@ -17,7 +17,7 @@ This implementation is a basic example provided for demonstration purposes only.
 - Run the provided ``schema.sql`` file (located in src/main/resources) to set up the required tables.
 
 #### Set Up the .env configuration:
-Setup env variables for your db connection (see **.env.example** for more info):
+Setup env variables for your db connection (see **.env.example in src/main/resources** for more info):
 ```env
 POSTGRES_HOST= 
 POSTGRES_USERNAME=
