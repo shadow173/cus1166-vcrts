@@ -183,6 +183,11 @@ public class UserDAO {
         }
         return false;
     }
+    /**
+     * Retrieves a list of all users who have the role of "vehicle_owner" from the database
+     * @return a list of `User` objects representing vehicle owners. If no users are found or an error occurs,
+     *         an empty list is returned.
+     */
     public List<User> getAllVehicleOwners() {
         List<User> owners = new ArrayList<>();
         String sql = "SELECT user_id, full_name, email, role, password FROM users WHERE role = ?";

@@ -11,6 +11,12 @@ import java.util.logging.Logger;
 public class JobDAO {
     private static final Logger logger = Logger.getLogger(JobDAO.class.getName());
 
+    /**
+     * Retrieves all jobs
+
+     * @return a list of {@code Job} objects representing all jobs in the database.
+     *         Returns an empty list if no jobs are found or an error occurs.
+     */
     public List<Job> getAllJobs() {
         List<Job> jobs = new ArrayList<>();
         String query = "SELECT job_id, job_name, job_owner_id, duration, deadline, status FROM jobs";
@@ -33,7 +39,12 @@ public class JobDAO {
         }
         return jobs;
     }
+    /**
+     * Adds a new job to the database.
 
+     * @param job the {Job} object containing job details.
+     * @return  true if the job was successfully added, otherwise false
+     */
     public boolean addJob(Job job) {
         String insertQuery = "INSERT INTO jobs (job_id, job_name, job_owner_id, duration, deadline, status) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseManager.getConnection();
@@ -51,6 +62,11 @@ public class JobDAO {
         return false;
     }
 
+    /**
+     * Deletes a job from the database.
+     * @param jobId the unique identifier of the job to be deleted.
+     * @return true if the job was successfully deleted, otherwise false
+     */
     public boolean deleteJob(String jobId) {
         String deleteQuery = "DELETE FROM jobs WHERE job_id = ?";
         try (Connection conn = DatabaseManager.getConnection();
@@ -69,7 +85,7 @@ public class JobDAO {
      *
      * @param clientId The job owner's ID.
      * @param status The status filter ("All", "Queued", "In Progress", "Completed", etc.).
-     * @return A list of Job objects.
+     * @return A list of Job objects
      */
     public List<Job> getJobsByClient(int clientId, String status) {
         List<Job> jobs = new ArrayList<>();
