@@ -1,4 +1,4 @@
-package com.cus1166.vcrts;
+package vcrts.core;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
