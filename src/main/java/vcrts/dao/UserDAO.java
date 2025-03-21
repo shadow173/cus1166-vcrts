@@ -1,21 +1,53 @@
 package vcrts.dao;
 
-import io.github.cdimascio.dotenv.Dotenv;
-import vcrts.db.DatabaseManager;
+import vcrts.db.FileManager;
 import vcrts.models.User;
-import java.sql.*;
+import vcrts.util.PasswordUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.mindrot.jbcrypt.BCrypt;
 
 public class UserDAO {
-    private Dotenv dotenv = Dotenv.load();
     private static final Logger logger = Logger.getLogger(UserDAO.class.getName());
+    private static final String USERS_FILE = "users.txt";
+    private static final String DELIMITER = "\\|";
+    private static final String SEPARATOR = "|";
 
     /**
-     * Adds a new user to the database.
+     * Converts a User object to a line of text for storage.
+     */
+    private String userToLine(User user) {
+        return user.getUserId() + SEPARATOR +
+                user.getFullName() + SEPARATOR +
+                user.getEmail() + SEPARATOR +
+                user.getRolesAsString() + SEPARATOR +
+                user.getPasswordHash();
+    }
+
+    /**
+     * Converts a line of text to a User object.
+     */
+    private User lineToUser(String line) {
+        String[] parts = line.split(DELIMITER);
+        if (parts.length < 5) {
+            logger.warning("Invalid user data format: " + line);
+            return null;
+        }
+
+        User user = new User(
+                parts[1], // fullName
+                parts[2], // email
+                parts[3], // roles
+                parts[4]  // passwordHash
+        );
+        user.setUserId(Integer.parseInt(parts[0]));
+        return user;
+    }
+
+    /**
+     * Adds a new user to the file.
      * The provided User object's passwordHash field should contain the plain-text password.
      * This method will hash it before storing.
      *
@@ -23,94 +55,50 @@ public class UserDAO {
      * @return true if the user is added successfully; false otherwise.
      */
     public boolean addUser(User user) {
-        String sql = "INSERT INTO users (full_name, email, role, password) VALUES (?, ?, ?, ?)";
-        String hashedPassword = BCrypt.hashpw(user.getPasswordHash(), BCrypt.gensalt());
+        String hashedPassword = PasswordUtil.hashPassword(user.getPasswordHash());
+        user.setPasswordHash(hashedPassword);
 
-        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, user.getFullName());
-            stmt.setString(2, user.getEmail());
-            stmt.setString(3, user.getRole());
-            stmt.setString(4, hashedPassword);
+        // Generate a unique ID for the new user
+        int userId = FileManager.generateUniqueNumericId(USERS_FILE);
+        user.setUserId(userId);
 
-            int affectedRows = stmt.executeUpdate();
-            if (affectedRows == 0) {
-                throw new SQLException("Creating user failed, no rows affected.");
-            }
-
-            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    int userId = generatedKeys.getInt(1);
-                    // Now you have the generated user_id
-                    user.setUserId(userId);
-                    return true;
-                } else {
-                    throw new SQLException("Creating user failed, no ID obtained.");
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        return false;
+        String userLine = userToLine(user);
+        return FileManager.appendLine(USERS_FILE, userLine);
     }
 
-//    *****User fetching and methods will be implemented on the GUI later.******
-
     /**
-     * Retrieves a user from the database by user ID.
+     * Retrieves a user from the file by user ID.
      *
      * @param userId The user ID.
      * @return A User object if found; null otherwise.
      */
     public User getUserById(int userId) {
-        String sql = "SELECT user_id, full_name, email, role, password FROM users WHERE user_id = ?";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, userId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    User user = new User(
-                            rs.getString("full_name"),
-                            rs.getString("email"),
-                            rs.getString("role"),
-                            rs.getString("password")
-                    );
-                    user.setUserId(userId);
-                    return user;
-                }
+        List<String> lines = FileManager.readAllLines(USERS_FILE);
+        for (String line : lines) {
+            User user = lineToUser(line);
+            if (user != null && user.getUserId() == userId) {
+                return user;
             }
-        } catch (SQLException ex) {
-            logger.log(Level.SEVERE, "Error retrieving user by ID: " + ex.getMessage(), ex);
         }
-
         return null;
     }
 
     /**
-     * Retrieves all users from the database.
+     * Retrieves all users from the file.
      *
      * @return A List of User objects.
      */
     public List<User> getAllUsers() {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT user_id, full_name, email, role, password FROM users";
-        try (Connection conn = DatabaseManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                User user = new User(
-                        rs.getString("full_name"),
-                        rs.getString("email"),
-                        rs.getString("role"),
-                        rs.getString("password")
-                );
-                user.setUserId(rs.getInt("user_id"));
+        List<String> lines = FileManager.readAllLines(USERS_FILE);
+
+        for (String line : lines) {
+            User user = lineToUser(line);
+            if (user != null) {
                 users.add(user);
             }
-        } catch (SQLException ex) {
-            logger.log(Level.SEVERE, "Error retrieving all users: " + ex.getMessage(), ex);
         }
+
         return users;
     }
 
@@ -121,139 +109,139 @@ public class UserDAO {
      * @return true if the update is successful; false otherwise.
      */
     public boolean updateUser(User user) {
-        String sql = "UPDATE users SET full_name = ?, email = ?, role = ? WHERE user_id = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, user.getFullName());
-            stmt.setString(2, user.getEmail());
-            stmt.setString(3, user.getRole());
-            stmt.setInt(4, user.getUserId());
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("User updated: " + user.getUserId());
-                return true;
+        List<String> lines = FileManager.readAllLines(USERS_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean updated = false;
+
+        for (String line : lines) {
+            User existingUser = lineToUser(line);
+            if (existingUser != null && existingUser.getUserId() == user.getUserId()) {
+                // Keep the existing password hash
+                user.setPasswordHash(existingUser.getPasswordHash());
+                updatedLines.add(userToLine(user));
+                updated = true;
+            } else {
+                updatedLines.add(line);
             }
-        } catch (SQLException ex) {
-            logger.log(Level.SEVERE, "Error updating user: " + ex.getMessage(), ex);
         }
-        return false;
+
+        return updated && FileManager.writeAllLines(USERS_FILE, updatedLines);
     }
 
     /**
      * Updates a user's password.
      *
-     * @param userId The user's ID.
+     * @param userId The user's ID as a string.
      * @param newPlainPassword The new plain-text password.
      * @return true if the update is successful; false otherwise.
      */
     public boolean updatePassword(String userId, String newPlainPassword) {
-        String hashedPassword = BCrypt.hashpw(newPlainPassword, dotenv.get("BCRYPT_SALT"));
-        String sql = "UPDATE users SET password = ? WHERE user_id = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, hashedPassword);
-            stmt.setString(2, userId);
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("Password updated for user: " + userId);
-                return true;
-            }
-        } catch (SQLException ex) {
-            logger.log(Level.SEVERE, "Error updating password: " + ex.getMessage(), ex);
+        int id;
+        try {
+            id = Integer.parseInt(userId);
+        } catch (NumberFormatException e) {
+            logger.log(Level.WARNING, "Invalid user ID format: " + userId);
+            return false;
         }
-        return false;
+
+        List<String> lines = FileManager.readAllLines(USERS_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean updated = false;
+
+        String hashedPassword = PasswordUtil.hashPassword(newPlainPassword);
+
+        for (String line : lines) {
+            User user = lineToUser(line);
+            if (user != null && user.getUserId() == id) {
+                user.setPasswordHash(hashedPassword);
+                updatedLines.add(userToLine(user));
+                updated = true;
+            } else {
+                updatedLines.add(line);
+            }
+        }
+
+        return updated && FileManager.writeAllLines(USERS_FILE, updatedLines);
     }
 
     /**
-     * Deletes a user from the database.
+     * Deletes a user from the file.
      *
-     * @param userId The user's ID.
+     * @param userId The user's ID as a string.
      * @return true if the deletion is successful; false otherwise.
      */
     public boolean deleteUser(String userId) {
-        String sql = "DELETE FROM users WHERE user_id = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, userId);
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("User deleted: " + userId);
-                return true;
-            }
-        } catch (SQLException ex) {
-            logger.log(Level.SEVERE, "Error deleting user: " + ex.getMessage(), ex);
+        int id;
+        try {
+            id = Integer.parseInt(userId);
+        } catch (NumberFormatException e) {
+            logger.log(Level.WARNING, "Invalid user ID format: " + userId);
+            return false;
         }
-        return false;
+
+        List<String> lines = FileManager.readAllLines(USERS_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean deleted = false;
+
+        for (String line : lines) {
+            User user = lineToUser(line);
+            if (user != null && user.getUserId() == id) {
+                deleted = true;
+            } else {
+                updatedLines.add(line);
+            }
+        }
+
+        return deleted && FileManager.writeAllLines(USERS_FILE, updatedLines);
     }
+
     /**
-     * Retrieves a list of all users who have the role of "vehicle_owner" from the database
-     * @return a list of `User` objects representing vehicle owners. If no users are found or an error occurs,
-     *         an empty list is returned.
+     * Retrieves a list of all users who have the role of "vehicle_owner" from the file.
+     * @return a list of `User` objects representing vehicle owners.
      */
     public List<User> getAllVehicleOwners() {
         List<User> owners = new ArrayList<>();
-        String sql = "SELECT user_id, full_name, email, role, password FROM users WHERE role = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, "vehicle_owner");
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    User user = new User(
-                            rs.getString("full_name"),
-                            rs.getString("email"),
-                            rs.getString("role"),
-                            rs.getString("password")
-                    );
-                    user.setUserId(rs.getInt("user_id"));
-                    owners.add(user);
-                }
+        List<String> lines = FileManager.readAllLines(USERS_FILE);
+
+        for (String line : lines) {
+            User user = lineToUser(line);
+            if (user != null && user.hasRole("vehicle_owner")) {
+                owners.add(user);
             }
-        } catch (SQLException ex) {
-            Logger.getLogger(UserDAO.class.getName()).log(Level.SEVERE, "Error retrieving vehicle owners: " + ex.getMessage(), ex);
         }
+
         return owners;
     }
 
     /**
      * Authenticates a user by email and plain-text password.
-     * Uses BCrypt to check the password against the stored hash.
+     * Uses PasswordUtil to check the password against the stored hash.
      *
      * @param email The user's email.
      * @param plainPassword The plain-text password.
      * @return A User object if authentication is successful; null otherwise.
      */
     public User authenticate(String email, String plainPassword) {
-        String sql = "SELECT user_id, full_name, email, role, password FROM users WHERE email = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, email);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    String storedHash = rs.getString("password");
-                    try {
-                        if (BCrypt.checkpw(plainPassword, storedHash)) {
-                            logger.info("User authenticated: " + rs.getString("user_id"));
-                            User user = new User(
-                                    rs.getString("full_name"),
-                                    rs.getString("email"),
-                                    rs.getString("role"),
-                                    storedHash
-                            );
-                            user.setUserId(rs.getInt("user_id"));
-                            return user;
-                        } else {
-                            logger.warning("Authentication failed for email: " + email);
-                        }
-                    } catch (IllegalArgumentException ex) {
-                        logger.log(Level.SEVERE, "Invalid salt version for stored hash: " + storedHash, ex);
-                        return null;
+        List<String> lines = FileManager.readAllLines(USERS_FILE);
+
+        for (String line : lines) {
+            User user = lineToUser(line);
+            if (user != null && email.equals(user.getEmail())) {
+                String storedHash = user.getPasswordHash();
+                try {
+                    if (PasswordUtil.checkPassword(plainPassword, storedHash)) {
+                        logger.info("User authenticated: " + user.getUserId());
+                        return user;
+                    } else {
+                        logger.warning("Authentication failed for email: " + email);
                     }
+                } catch (Exception ex) {
+                    logger.log(Level.SEVERE, "Invalid stored hash for user: " + user.getUserId(), ex);
                 }
+                break;  // Exit once we've found the user with this email
             }
-        } catch (SQLException ex) {
-            logger.log(Level.SEVERE, "Error during authentication: " + ex.getMessage(), ex);
         }
+
         return null;
     }
-
 }

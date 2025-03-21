@@ -3,11 +3,15 @@ package vcrts;
 import vcrts.gui.MainFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import io.github.cdimascio.dotenv.Dotenv;
+import java.io.File;
 
 public class App {
     public static void main(String[] args) {
-        Dotenv dotenv = Dotenv.load();
+        // Create the data directory if it doesn't exist
+        File dataDir = new File("data");
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
+        }
 
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());

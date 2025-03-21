@@ -1,55 +1,82 @@
 package vcrts.dao;
 
-import vcrts.db.DatabaseManager;
+import vcrts.db.FileManager;
 import vcrts.models.Allocation;
-import java.sql.*;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class AllocationDAO {
+    private static final Logger logger = Logger.getLogger(AllocationDAO.class.getName());
+    private static final String ALLOCATIONS_FILE = "allocations.txt";
+    private static final String DELIMITER = "\\|";
+    private static final String SEPARATOR = "|";
 
     /**
-     * Retrieves all allocation records from the database.
+     * Converts an Allocation object to a line of text for storage.
+     */
+    private String allocationToLine(Allocation allocation) {
+        return allocation.getAllocationId() + SEPARATOR +
+                allocation.getUserId() + SEPARATOR +
+                allocation.getJobId();
+    }
+
+    /**
+     * Converts a line of text to an Allocation object.
+     */
+    private Allocation lineToAllocation(String line) {
+        String[] parts = line.split(DELIMITER);
+        if (parts.length < 3) {
+            logger.warning("Invalid allocation data format: " + line);
+            return null;
+        }
+
+        try {
+            return new Allocation(
+                    Integer.parseInt(parts[0]),  // allocationId
+                    parts[1],                     // userId
+                    parts[2]                      // jobId
+            );
+        } catch (NumberFormatException e) {
+            logger.log(Level.WARNING, "Error parsing allocation ID: " + parts[0], e);
+            return null;
+        }
+    }
+
+    /**
+     * Retrieves all allocation records from the file.
      *
      * @return A list of all allocations.
      */
     public List<Allocation> getAllAllocations() {
         List<Allocation> allocations = new ArrayList<>();
-        String query = "SELECT allocation_id, user_id, job_id FROM allocations";
-        try (Connection conn = DatabaseManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                Allocation allocation = new Allocation(
-                        rs.getInt("allocation_id"),
-                        rs.getString("user_id"),
-                        rs.getString("job_id")
-                );
+        List<String> lines = FileManager.readAllLines(ALLOCATIONS_FILE);
+
+        for (String line : lines) {
+            Allocation allocation = lineToAllocation(line);
+            if (allocation != null) {
                 allocations.add(allocation);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
+
         return allocations;
     }
 
     /**
-     * Adds a new allocation to the database.
+     * Adds a new allocation to the file.
      *
      * @param allocation The allocation object to be added.
      * @return true if the allocation was successfully added, false otherwise.
      */
     public boolean addAllocation(Allocation allocation) {
-        String insertQuery = "INSERT INTO allocations (user_id, job_id) VALUES (?, ?)";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
-            pstmt.setString(1, allocation.getUserId());
-            pstmt.setString(2, allocation.getJobId());
-            return pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
+        // Generate a new allocation ID
+        int allocationId = FileManager.generateUniqueNumericId(ALLOCATIONS_FILE);
+        allocation.setAllocationId(allocationId);
+
+        String allocationLine = allocationToLine(allocation);
+        return FileManager.appendLine(ALLOCATIONS_FILE, allocationLine);
     }
 
     /**
@@ -59,14 +86,42 @@ public class AllocationDAO {
      * @return true if the allocation was successfully deleted, false otherwise.
      */
     public boolean deleteAllocation(int allocationId) {
-        String deleteQuery = "DELETE FROM allocations WHERE allocation_id = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(deleteQuery)) {
-            pstmt.setInt(1, allocationId);
-            return pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
+        List<String> lines = FileManager.readAllLines(ALLOCATIONS_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean deleted = false;
+
+        for (String line : lines) {
+            Allocation allocation = lineToAllocation(line);
+            if (allocation != null && allocation.getAllocationId() == allocationId) {
+                deleted = true;
+            } else {
+                updatedLines.add(line);
+            }
         }
-        return false;
+
+        return deleted && FileManager.writeAllLines(ALLOCATIONS_FILE, updatedLines);
+    }
+
+    /**
+     * Updates an existing allocation's details.
+     * @param allocation An Allocation object with updated information.
+     * @return true if the update is successful; false otherwise.
+     */
+    public boolean updateAllocation(Allocation allocation) {
+        List<String> lines = FileManager.readAllLines(ALLOCATIONS_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean updated = false;
+
+        for (String line : lines) {
+            Allocation existingAllocation = lineToAllocation(line);
+            if (existingAllocation != null && existingAllocation.getAllocationId() == allocation.getAllocationId()) {
+                updatedLines.add(allocationToLine(allocation));
+                updated = true;
+            } else {
+                updatedLines.add(line);
+            }
+        }
+
+        return updated && FileManager.writeAllLines(ALLOCATIONS_FILE, updatedLines);
     }
 }

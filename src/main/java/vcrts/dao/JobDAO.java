@@ -1,8 +1,8 @@
 package vcrts.dao;
 
-import vcrts.db.DatabaseManager;
+import vcrts.db.FileManager;
 import vcrts.models.Job;
-import java.sql.*;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -10,78 +10,107 @@ import java.util.logging.Logger;
 
 public class JobDAO {
     private static final Logger logger = Logger.getLogger(JobDAO.class.getName());
+    private static final String JOBS_FILE = "jobs.txt";
+    private static final String DELIMITER = "\\|";
+    private static final String SEPARATOR = "|";
 
     /**
-     * Retrieves all jobs
+     * Converts a Job object to a line of text for storage.
+     */
+    private String jobToLine(Job job) {
+        return job.getJobId() + SEPARATOR +
+                job.getJobName() + SEPARATOR +
+                job.getJobOwnerId() + SEPARATOR +
+                job.getDuration() + SEPARATOR +
+                job.getDeadline() + SEPARATOR +
+                job.getStatus() + SEPARATOR +
+                job.getCreatedTimestamp();
+    }
 
-     * @return a list of {@code Job} objects representing all jobs in the database.
-     *         Returns an empty list if no jobs are found or an error occurs.
+    /**
+     * Converts a line of text to a Job object.
+     */
+    private Job lineToJob(String line) {
+        String[] parts = line.split(DELIMITER);
+        if (parts.length < 6) {
+            logger.warning("Invalid job data format: " + line);
+            return null;
+        }
+
+        try {
+            // Check if the timestamp is included in the line
+            String timestamp = parts.length >= 7 ? parts[6] : Job.getCurrentTimestamp();
+
+            return new Job(
+                    parts[0],                       // jobId
+                    parts[1],                       // jobName
+                    Integer.parseInt(parts[2]),     // jobOwnerId
+                    parts[3],                       // duration
+                    parts[4],                       // deadline
+                    parts[5],                       // status
+                    timestamp                       // createdTimestamp
+            );
+        } catch (NumberFormatException e) {
+            logger.log(Level.WARNING, "Error parsing job owner ID: " + parts[2], e);
+            return null;
+        }
+    }
+
+    /**
+     * Retrieves all jobs - SHOULD ONLY BE CALLED BY CLOUD CONTROLLER
+     * @return a list of {@code Job} objects representing all jobs in the file.
      */
     public List<Job> getAllJobs() {
         List<Job> jobs = new ArrayList<>();
-        String query = "SELECT job_id, job_name, job_owner_id, duration, deadline, status FROM jobs";
-        try (Connection conn = DatabaseManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                Job job = new Job(
-                        rs.getString("job_id"),
-                        rs.getString("job_name"),
-                        rs.getInt("job_owner_id"),
-                        rs.getString("duration"),
-                        rs.getString("deadline"),
-                        rs.getString("status")
-                );
+        List<String> lines = FileManager.readAllLines(JOBS_FILE);
+
+        for (String line : lines) {
+            Job job = lineToJob(line);
+            if (job != null) {
                 jobs.add(job);
             }
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Error retrieving all jobs: " + e.getMessage(), e);
         }
+
         return jobs;
     }
-    /**
-     * Adds a new job to the database.
 
+    /**
+     * Adds a new job to the file.
      * @param job the {Job} object containing job details.
-     * @return  true if the job was successfully added, otherwise false
+     * @return true if the job was successfully added, otherwise false
      */
     public boolean addJob(Job job) {
-        String insertQuery = "INSERT INTO jobs (job_id, job_name, job_owner_id, duration, deadline, status) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
-            pstmt.setString(1, job.getJobId());
-            pstmt.setString(2, job.getJobName());
-            pstmt.setInt(3, job.getJobOwnerId());
-            pstmt.setString(4, job.getDuration());
-            pstmt.setString(5, job.getDeadline());
-            pstmt.setString(6, job.getStatus());
-            return pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Error adding job: " + e.getMessage(), e);
-        }
-        return false;
+        // Jobs already have IDs set by the application
+        String jobLine = jobToLine(job);
+        return FileManager.appendLine(JOBS_FILE, jobLine);
     }
 
     /**
-     * Deletes a job from the database.
+     * Deletes a job from the file.
      * @param jobId the unique identifier of the job to be deleted.
      * @return true if the job was successfully deleted, otherwise false
      */
     public boolean deleteJob(String jobId) {
-        String deleteQuery = "DELETE FROM jobs WHERE job_id = ?";
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(deleteQuery)) {
-            pstmt.setString(1, jobId);
-            return pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Error deleting job: " + e.getMessage(), e);
+        List<String> lines = FileManager.readAllLines(JOBS_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean deleted = false;
+
+        for (String line : lines) {
+            Job job = lineToJob(line);
+            if (job != null && jobId.equals(job.getJobId())) {
+                deleted = true;
+            } else {
+                updatedLines.add(line);
+            }
         }
-        return false;
+
+        return deleted && FileManager.writeAllLines(JOBS_FILE, updatedLines);
     }
 
     /**
      * Retrieves jobs for a given client (job owner) filtered by status.
-     * If status equals "All" (case-insensitive), all jobs for that client are returned.
+     * If status equals "All" (case-insensitive), all jobs for the client are returned.
+     * This method ensures clients can only see their own jobs.
      *
      * @param clientId The job owner's ID.
      * @param status The status filter ("All", "Queued", "In Progress", "Completed", etc.).
@@ -89,34 +118,44 @@ public class JobDAO {
      */
     public List<Job> getJobsByClient(int clientId, String status) {
         List<Job> jobs = new ArrayList<>();
-        String query;
-        if ("All".equalsIgnoreCase(status)) {
-            query = "SELECT job_id, job_name, job_owner_id, duration, deadline, status FROM jobs WHERE job_owner_id = ?";
-        } else {
-            query = "SELECT job_id, job_name, job_owner_id, duration, deadline, status FROM jobs WHERE job_owner_id = ? AND status = ?";
-        }
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setInt(1, clientId);
-            if (!"All".equalsIgnoreCase(status)) {
-                pstmt.setString(2, status);
-            }
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Job job = new Job(
-                            rs.getString("job_id"),
-                            rs.getString("job_name"),
-                            rs.getInt("job_owner_id"),
-                            rs.getString("duration"),
-                            rs.getString("deadline"),
-                            rs.getString("status")
-                    );
+        List<String> lines = FileManager.readAllLines(JOBS_FILE);
+
+        for (String line : lines) {
+            Job job = lineToJob(line);
+
+            // Only return jobs that belong to this client
+            if (job != null && job.getJobOwnerId() == clientId) {
+                if ("All".equalsIgnoreCase(status) || status.equalsIgnoreCase(job.getStatus())) {
                     jobs.add(job);
                 }
             }
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Error retrieving jobs for client " + clientId + ": " + e.getMessage(), e);
         }
+
         return jobs;
+    }
+
+    /**
+     * Updates an existing job's details.
+     * @param job A Job object with updated information.
+     * @return true if the update is successful; false otherwise.
+     */
+    public boolean updateJob(Job job) {
+        List<String> lines = FileManager.readAllLines(JOBS_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean updated = false;
+
+        for (String line : lines) {
+            Job existingJob = lineToJob(line);
+            if (existingJob != null && existingJob.getJobId().equals(job.getJobId())) {
+                // Preserve the original timestamp
+                job.setCreatedTimestamp(existingJob.getCreatedTimestamp());
+                updatedLines.add(jobToLine(job));
+                updated = true;
+            } else {
+                updatedLines.add(line);
+            }
+        }
+
+        return updated && FileManager.writeAllLines(JOBS_FILE, updatedLines);
     }
 }

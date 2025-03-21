@@ -1,0 +1,7 @@
+1|TEST|TEST|vehicle_owner|$2a$10$GhoajTnjBQf.06xphrtT0.roIklS5kCDU/DCEpOCGZTzMigDY1SFy
+2|HI|HI|vehicle_owner|acZk41t1sGjGsLAx4IhdbA==:UeZOh+R2WCpRZpOUg8E2L7oATt7Vu9qJ2uc+YhJoL+U=
+3|HII|HII|vehicle_owner,job_owner|SWJ842DIl2SL7o6H69UyTw==:QhGCS+b6BgvQdDe7qfO3iiHM5zCCcTQ4dgIKlFbC1lE=
+4|LinkedHashMap|LinkedHashMap|cloud_controller|VB52MSua9YWQzB6F9N2y2w==:29Rrd++rQBDtZw6bDb4OT/byc7ZGryokkMi4Gv8V1KM=
+5|admin|admin@vcrts.com|cloud_controller|Mq2ksuWNwM6wqkJ0lCqBFQ==:TDzoJtJa/++ltn5EpF92PaBacfDe142P8l+qozl0TRw=
+6|TESTTTT|TESTTTT|vehicle_owner,job_owner|6ePJu5Dza9V79QooOtY79g==:Xy12DXdHBBf1qbrabt81pAEUc6ts8u9Y/JMKPBxVk0M=
+7|TESTSETSETST|TESTSETSETST|vehicle_owner,job_owner|eiASh34D63IPYjj0aeOFLg==:fUAwEaqtOHiQNNBPnQAFpIYmbbsuF7KCgc0yK5cJH9s=

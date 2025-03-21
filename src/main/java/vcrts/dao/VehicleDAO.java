@@ -1,12 +1,78 @@
 package vcrts.dao;
 
-import vcrts.db.DatabaseManager;
+import vcrts.db.FileManager;
 import vcrts.models.Vehicle;
-import java.sql.*;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class VehicleDAO {
+    private static final Logger logger = Logger.getLogger(VehicleDAO.class.getName());
+    private static final String VEHICLES_FILE = "vehicles.txt";
+    private static final String DELIMITER = "\\|";
+    private static final String SEPARATOR = "|";
+
+    /**
+     * Converts a Vehicle object to a line of text for storage.
+     */
+    private String vehicleToLine(Vehicle vehicle) {
+        return vehicle.getOwnerId() + SEPARATOR +
+                vehicle.getModel() + SEPARATOR +
+                vehicle.getMake() + SEPARATOR +
+                vehicle.getYear() + SEPARATOR +
+                vehicle.getVin() + SEPARATOR +
+                vehicle.getResidencyTime() + SEPARATOR +
+                vehicle.getRegisteredTimestamp();
+    }
+
+    /**
+     * Converts a line of text to a Vehicle object.
+     */
+    private Vehicle lineToVehicle(String line) {
+        String[] parts = line.split(DELIMITER);
+        if (parts.length < 6) {
+            logger.warning("Invalid vehicle data format: " + line);
+            return null;
+        }
+
+        try {
+            // Check if the timestamp is included in the line
+            String timestamp = parts.length >= 7 ? parts[6] : Vehicle.getCurrentTimestamp();
+
+            return new Vehicle(
+                    Integer.parseInt(parts[0]),  // ownerId
+                    parts[1],                     // model
+                    parts[2],                     // make
+                    parts[3],                     // year
+                    parts[4],                     // vin
+                    parts[5],                     // residencyTime
+                    timestamp                     // registeredTimestamp
+            );
+        } catch (NumberFormatException e) {
+            logger.log(Level.WARNING, "Error parsing owner ID: " + parts[0], e);
+            return null;
+        }
+    }
+
+    /**
+     * Retrieves all vehicles from the file.
+     * @return A list of all vehicles.
+     */
+    public List<Vehicle> getAllVehicles() {
+        List<Vehicle> vehicles = new ArrayList<>();
+        List<String> lines = FileManager.readAllLines(VEHICLES_FILE);
+
+        for (String line : lines) {
+            Vehicle vehicle = lineToVehicle(line);
+            if (vehicle != null) {
+                vehicles.add(vehicle);
+            }
+        }
+
+        return vehicles;
+    }
 
     /**
      * Retrieves a list of vehicles owned by a specific user.
@@ -16,75 +82,74 @@ public class VehicleDAO {
      */
     public List<Vehicle> getVehiclesByOwner(int ownerId) {
         List<Vehicle> vehicles = new ArrayList<>();
-        String query = "SELECT owner_id, model, make, year, vin, residency_time FROM vehicles WHERE owner_id = ?";
+        List<String> lines = FileManager.readAllLines(VEHICLES_FILE);
 
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, ownerId);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Vehicle v = new Vehicle(
-                            rs.getInt("owner_id"),
-                            rs.getString("model"),
-                            rs.getString("make"),
-                            rs.getString("year"),
-                            rs.getString("vin"),
-                            rs.getString("residency_time")
-                    );
-                    vehicles.add(v);
-                }
+        for (String line : lines) {
+            Vehicle vehicle = lineToVehicle(line);
+            if (vehicle != null && vehicle.getOwnerId() == ownerId) {
+                vehicles.add(vehicle);
             }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
         }
+
         return vehicles;
     }
 
     /**
-     * Adds a new vehicle record to the database.
+     * Adds a new vehicle record to the file.
      *
      * @param vehicle The Vehicle object to be added.
      * @return true if the vehicle was successfully added, false otherwise.
      */
     public boolean addVehicle(Vehicle vehicle) {
-        String query = "INSERT INTO vehicles (owner_id, model, make, year, vin, residency_time) VALUES (?, ?, ?, ?, ?, ?)";
-
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            // Set parameters for the vehicle details
-            stmt.setInt(1, vehicle.getOwnerId());
-            stmt.setString(2, vehicle.getModel());
-            stmt.setString(3, vehicle.getMake());
-            stmt.setString(4, vehicle.getYear());
-            stmt.setString(5, vehicle.getVin());
-            stmt.setString(6, vehicle.getResidencyTime());
-
-            return stmt.executeUpdate() > 0;
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-        }
-        return false; // Return false ifff exception
+        String vehicleLine = vehicleToLine(vehicle);
+        return FileManager.appendLine(VEHICLES_FILE, vehicleLine);
     }
 
     /**
-     * Deletes a vehicle from the database based on its VIN.
+     * Deletes a vehicle from the file based on its VIN.
      *
      * @param vin The VIN of the vehicle to be deleted.
      * @return true if the vehicle was successfully deleted, false otherwise.
      */
     public boolean deleteVehicle(String vin) {
-        String query = "DELETE FROM vehicles WHERE vin = ?";
+        List<String> lines = FileManager.readAllLines(VEHICLES_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean deleted = false;
 
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setString(1, vin);
-            return stmt.executeUpdate() > 0;
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+        for (String line : lines) {
+            Vehicle vehicle = lineToVehicle(line);
+            if (vehicle != null && vin.equals(vehicle.getVin())) {
+                deleted = true;
+            } else {
+                updatedLines.add(line);
+            }
         }
-        return false;
+
+        return deleted && FileManager.writeAllLines(VEHICLES_FILE, updatedLines);
+    }
+
+    /**
+     * Updates an existing vehicle's details.
+     * @param vehicle A Vehicle object with updated information.
+     * @return true if the update is successful; false otherwise.
+     */
+    public boolean updateVehicle(Vehicle vehicle) {
+        List<String> lines = FileManager.readAllLines(VEHICLES_FILE);
+        List<String> updatedLines = new ArrayList<>();
+        boolean updated = false;
+
+        for (String line : lines) {
+            Vehicle existingVehicle = lineToVehicle(line);
+            if (existingVehicle != null && existingVehicle.getVin().equals(vehicle.getVin())) {
+                // Preserve the original timestamp
+                vehicle.setRegisteredTimestamp(existingVehicle.getRegisteredTimestamp());
+                updatedLines.add(vehicleToLine(vehicle));
+                updated = true;
+            } else {
+                updatedLines.add(line);
+            }
+        }
+
+        return updated && FileManager.writeAllLines(VEHICLES_FILE, updatedLines);
     }
 }

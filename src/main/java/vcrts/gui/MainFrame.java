@@ -10,6 +10,7 @@ public class MainFrame extends JFrame {
     private static final Logger logger = Logger.getLogger(MainFrame.class.getName());
     private CardLayout cardLayout;
     private JPanel mainPanel;
+    private User currentUser;
 
     public MainFrame() {
         setTitle("VCRTS Application");
@@ -42,6 +43,8 @@ public class MainFrame extends JFrame {
      * The appropriate dashboard is then added and displayed.
      */
     public void showDashboard(User user) {
+        this.currentUser = user;
+
         // Remove any previously added dashboard
         Component[] components = mainPanel.getComponents();
         for (Component comp : components) {
@@ -50,25 +53,26 @@ public class MainFrame extends JFrame {
             }
         }
 
-        // Based on user role, add the correct dashboard.
-        if (user.getRole().equalsIgnoreCase("vehicle_owner")) {
-            ClientDashboard clientDashboard = new ClientDashboard(user);
-            clientDashboard.setName("dashboard");
-            mainPanel.add(clientDashboard, "dashboard");
-        } else if (user.getRole().equalsIgnoreCase("job_owner")) {
-            OwnerDashboard ownerDashboard = new OwnerDashboard(user.getUserId());
-            ownerDashboard.setName("dashboard");
-            mainPanel.add(ownerDashboard, "dashboard");
-        } else if (user.getRole().equalsIgnoreCase("cloud_controller")) {
-            CloudControllerDashboard cloudDashboard = new CloudControllerDashboard();
-            cloudDashboard.setName("dashboard");
-            mainPanel.add(cloudDashboard, "dashboard");
-        } else {
-            logger.severe("Unknown user role: " + user.getRole());
-            JOptionPane.showMessageDialog(this, "Unknown user role!", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+        // Create a universal dashboard that can handle multiple roles
+        UniversalDashboard dashboard = new UniversalDashboard(this, user);
+        dashboard.setName("dashboard");
+        mainPanel.add(dashboard, "dashboard");
         showPage("dashboard");
+    }
+
+    /**
+     * Returns the currently logged-in user
+     */
+    public User getCurrentUser() {
+        return currentUser;
+    }
+
+    /**
+     * Log out the current user and return to the startup page
+     */
+    public void logout() {
+        this.currentUser = null;
+        showPage("startup");
     }
 
     public static void main(String[] args) {

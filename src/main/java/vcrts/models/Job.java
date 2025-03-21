@@ -1,5 +1,8 @@
 package vcrts.models;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 public class Job {
     private String jobId;
     private String jobName;
@@ -7,6 +10,9 @@ public class Job {
     private String duration;
     private String deadline;
     private String status;
+    private String createdTimestamp;
+
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public Job(String jobId, String jobName, int jobOwnerId, String duration, String deadline, String status) {
         this.jobId = jobId;
@@ -15,6 +21,18 @@ public class Job {
         this.duration = duration;
         this.deadline = deadline;
         this.status = status;
+        this.createdTimestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
+    }
+
+    // Constructor with timestamp parameter for loading from file
+    public Job(String jobId, String jobName, int jobOwnerId, String duration, String deadline, String status, String createdTimestamp) {
+        this.jobId = jobId;
+        this.jobName = jobName;
+        this.jobOwnerId = jobOwnerId;
+        this.duration = duration;
+        this.deadline = deadline;
+        this.status = status;
+        this.createdTimestamp = createdTimestamp;
     }
 
     // Getters and setters
@@ -30,4 +48,10 @@ public class Job {
     public void setDeadline(String deadline) { this.deadline = deadline; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getCreatedTimestamp() { return createdTimestamp; }
+    public void setCreatedTimestamp(String createdTimestamp) { this.createdTimestamp = createdTimestamp; }
+
+    public static String getCurrentTimestamp() {
+        return LocalDateTime.now().format(TIMESTAMP_FORMATTER);
+    }
 }

@@ -1,6 +1,7 @@
 package vcrts.gui.pages;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
@@ -29,19 +30,13 @@ public class OwnerDashboard extends JPanel {
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
 
-        // Top navigation with title and Logout button
+        // Top navigation with title
         JPanel topNav = new JPanel(new BorderLayout());
         topNav.setBackground(new Color(43, 43, 43));
         JLabel titleLabel = new JLabel("Owner Dashboard - Vehicle Management", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
         titleLabel.setForeground(Color.WHITE);
         topNav.add(titleLabel, BorderLayout.CENTER);
-        JButton logoutButton = new JButton("Logout");
-        topNav.add(logoutButton, BorderLayout.EAST);
-        logoutButton.addActionListener(e -> {
-            SwingUtilities.getWindowAncestor(this).dispose();
-            new MainFrame().setVisible(true);
-        });
         add(topNav, BorderLayout.NORTH);
 
         // Navigation panel to switch between registration form and list view
@@ -56,7 +51,8 @@ public class OwnerDashboard extends JPanel {
         // Content panel with CardLayout: one card for OwnerForm and one for vehicle list view.
         cardLayout = new CardLayout();
         contentPanel = new JPanel(cardLayout);
-        // Assume OwnerForm is implemented to accept ownerId and perform vehicle registration via VehicleDAO.
+
+        // Create OwnerForm to register vehicles
         contentPanel.add(new OwnerForm(ownerId), "form");
         contentPanel.add(createVehicleListPanel(), "list");
         add(contentPanel, BorderLayout.CENTER);
@@ -77,7 +73,7 @@ public class OwnerDashboard extends JPanel {
         listTitle.setForeground(Color.WHITE);
         panel.add(listTitle, BorderLayout.NORTH);
 
-        String[] columnNames = {"Owner ID", "Model", "Make", "Year", "VIN", "Residency Time"};
+        String[] columnNames = {"Owner ID", "Model", "Make", "Year", "VIN", "Residency Time", "Registered At"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
@@ -86,10 +82,22 @@ public class OwnerDashboard extends JPanel {
         vehicleTable.setForeground(Color.BLACK);
         vehicleTable.setRowHeight(30);
         vehicleTable.setFont(new Font("Arial", Font.PLAIN, 14));
+
+        // Center-align all columns
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        for (int i = 0; i < vehicleTable.getColumnCount(); i++) {
+            vehicleTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+
         JTableHeader header = vehicleTable.getTableHeader();
         header.setBackground(new Color(200, 200, 200));
         header.setForeground(Color.BLACK);
         header.setFont(new Font("Arial", Font.BOLD, 15));
+
+        // Center table header text
+        ((DefaultTableCellRenderer)header.getDefaultRenderer()).setHorizontalAlignment(JLabel.CENTER);
+
         JScrollPane scrollPane = new JScrollPane(vehicleTable);
         panel.add(scrollPane, BorderLayout.CENTER);
 
@@ -116,7 +124,8 @@ public class OwnerDashboard extends JPanel {
                         v.getMake(),
                         v.getYear(),
                         v.getVin(),
-                        v.getResidencyTime()
+                        v.getResidencyTime(),
+                        v.getRegisteredTimestamp()
                 });
             }
         } catch(Exception ex) {
