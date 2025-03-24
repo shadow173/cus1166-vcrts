@@ -44,7 +44,9 @@ public class OwnerDashboard extends JPanel {
         navPanel.setBackground(new Color(43, 43, 43));
         // JButton registerVehicleButton = new JButton("Register Vehicle");
         JButton viewVehiclesButton = new JButton("View Registered Vehicles");
+        JButton addMoreVehiclesButton = new JButton("Add More Vehicles");
         // navPanel.add(registerVehicleButton);
+        navPanel.add(addMoreVehiclesButton);
         navPanel.add(viewVehiclesButton);
         add(navPanel, BorderLayout.SOUTH);
 
@@ -58,6 +60,7 @@ public class OwnerDashboard extends JPanel {
         add(contentPanel, BorderLayout.CENTER);
 
         // registerVehicleButton.addActionListener(e -> cardLayout.show(contentPanel, "form"));
+        addMoreVehiclesButton.addActionListener(e -> cardLayout.show(contentPanel, "form"));
         viewVehiclesButton.addActionListener(e -> {
             refreshVehicleTable();
             cardLayout.show(contentPanel, "list");
