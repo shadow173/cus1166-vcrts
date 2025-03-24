@@ -134,9 +134,13 @@ public class OwnerForm extends JPanel {
         mainPanel.add(formPanel);
         mainPanel.add(Box.createVerticalStrut(20));
 
+        // Add the submit button inside the formPanel to move it up
+        gbc.gridx = 0;
+        gbc.gridy = 8;
+        gbc.gridwidth = 2;  // Span across two columns
+        gbc.anchor = GridBagConstraints.CENTER;
         JButton submitButton = new JButton("Register Vehicle");
-        submitButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        mainPanel.add(submitButton);
+        formPanel.add(submitButton, gbc);
 
         submitButton.addActionListener(e -> {
             String model = modelField.getText().trim();

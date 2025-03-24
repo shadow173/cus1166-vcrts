@@ -42,9 +42,9 @@ public class OwnerDashboard extends JPanel {
         // Navigation panel to switch between registration form and list view
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         navPanel.setBackground(new Color(43, 43, 43));
-        JButton registerVehicleButton = new JButton("Register Vehicle");
+        // JButton registerVehicleButton = new JButton("Register Vehicle");
         JButton viewVehiclesButton = new JButton("View Registered Vehicles");
-        navPanel.add(registerVehicleButton);
+        // navPanel.add(registerVehicleButton);
         navPanel.add(viewVehiclesButton);
         add(navPanel, BorderLayout.SOUTH);
 
@@ -57,7 +57,7 @@ public class OwnerDashboard extends JPanel {
         contentPanel.add(createVehicleListPanel(), "list");
         add(contentPanel, BorderLayout.CENTER);
 
-        registerVehicleButton.addActionListener(e -> cardLayout.show(contentPanel, "form"));
+        // registerVehicleButton.addActionListener(e -> cardLayout.show(contentPanel, "form"));
         viewVehiclesButton.addActionListener(e -> {
             refreshVehicleTable();
             cardLayout.show(contentPanel, "list");
